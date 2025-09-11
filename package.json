@@ -1,0 +1,14 @@
+{
+  "name": "auto-meeting",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "node-cron": "^3.0.3",
+    "puppeteer": "^22.0.0"
+  }
+}
