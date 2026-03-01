@@ -49,11 +49,25 @@ async function joinMeetingFrame(page) {
     return frame;
 }
 
-async function connectAudio(frame) {
-    await frame.waitForSelector("button[aria-label='Listen only']", { visible: true });
-    await frame.click("button[aria-label='Listen only']");
-    console.log("🎧 Connected in Listen only mode");
+async function pollForAudio(frame, intervalMs = 2000) {
+    let connected = false;
+    while (!connected) {
+        const btn = await frame.$("button[aria-label='Listen only']");
+        if (btn) {
+            await btn.click();
+            connected = true;
+            console.log("🎧 Connected in Listen only mode");
+        } else {
+            await sleep(intervalMs);
+        }
+    }
 }
+
+// async function connectAudio(frame) {
+//     await frame.waitForSelector("button[aria-label='Listen only']", { visible: true });
+//     await frame.click("button[aria-label='Listen only']");
+//     console.log("🎧 Connected in Listen only mode");
+// }
 
 async function stayInMeeting(durationMinutes) {
     console.log(`⏳ Staying in meeting for ${durationMinutes} minutes...`);
@@ -91,7 +105,8 @@ async function main(startTime) {
         await pollForMeetingStart(page); // poll until meeting starts
 
         const frame = await joinMeetingFrame(page);
-        await connectAudio(frame);
+        // await connectAudio(frame);
+        await pollForAudio(frame);
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
         await stayInMeeting(130); // 2h10m
