@@ -6,11 +6,11 @@ const PASSWORD = process.env.MYCLASS_PASS;
 
 // Step 0: Define schedule
 const schedule = {
-    1: ["7:00 PM"], // 7pm to 8pm <- Monday
-    2: ["7:00 PM"], // 7pm to 8pm <- Tuesday
-    3: ["7:00 PM"], // 7pm to 8pm <- Wednesday
-    4: ["7:00 PM"], // 7pm to 8pm <- Thursday
-    6: ["10:00 AM"], // 10am to 12pm <- Saturday
+    1: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Monday
+    2: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Tuesday
+    3: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Wednesday
+    4: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Thursday
+    6: [{ time: "10:00 AM", duration: 120 }], // 10am to 12pm <- Saturday
     // 0=Sunday, 5=Friday have no meetings
 };
 
@@ -35,10 +35,10 @@ function getNextMeeting() {
     const currentMinute = now.getMinutes();
 
     const todayMeetings = schedule[day] || [];
-    for (let start of todayMeetings) {
-        const {hour, min} = parseTimeString(start);
+    for (let { time, duration } of todayMeetings) {
+        const { hour, min } = parseTimeString(time);
         if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
-            return start; // next upcoming meeting
+            return { time, duration }; // next upcoming meeting's start time and duration
         }
     }
     return null; // no upcoming meetings
@@ -141,12 +141,13 @@ async function pollForMeetingStart(page, intervalMs = 4000) {
 }
 
 async function main() {
-    const startTime = getNextMeeting();
-    if (!startTime) {
+    const nextMeeting = getNextMeeting();
+    if (!nextMeeting) {
         console.log("📅 No upcoming meetings today.");
         return;
     }
-    console.log(`🎯 Next meeting is at ${startTime}`);
+    const { time: startTime, duration } = nextMeeting;
+    console.log(`🎯 Next meeting at: ${startTime}, Duration: ${duration} minutes`);
 
     const { browser, page } = await launchBrowser();
     try {
@@ -155,16 +156,16 @@ async function main() {
         await selectMeeting(page, startTime);
 
         await pollForMeetingStart(page); // poll until join button appears
-
         const frame = await joinMeetingFrame(page);
         await pollForAudio(frame); // keep trying until "Listen only" button appears
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
-        await stayInMeeting(130); // stay 2h10m
-
-    } catch (err) {
+        await stayInMeeting(duration); // stay as long as the meeting goes on
+    }
+    catch (err) {
         console.error("❌ Error:", err.message);
-    } finally {
+    }
+    finally {
         await browser.close();
     }
 }
