@@ -72,7 +72,11 @@ async function pollForMeetingStart(page, intervalMs = 4000) {
         } else {
             console.log(`⏱ Meeting not ready yet, reloading in ${intervalMs/1000} seconds...`);
             await sleep(intervalMs);
-            await page.reload({ waitUntil: "networkidle2" });
+            try {
+                await page.reload({ waitUntil: "networkidle2" });
+            } catch(e) {
+                console.log("⚠️ Reload failed, retrying...");
+            }
         }
     }
 }
