@@ -6,13 +6,26 @@ const PASSWORD = process.env.MYCLASS_PASS;
 
 // Step 0: Define schedule
 const schedule = {
-    1: ["7:00"], // 7pm to 8pm <- Monday
-    2: ["7:00"], // 7pm to 8pm <- Tuesday
-    3: ["7:00"], // 7pm to 8pm <- Wednesday
-    4: ["7:00"], // 7pm to 8pm <- Thursday
-    6: ["10:00"], // 10am to 12pm <- Saturday
+    1: ["7:00 PM"], // 7pm to 8pm <- Monday
+    2: ["7:00 PM"], // 7pm to 8pm <- Tuesday
+    3: ["7:00 PM"], // 7pm to 8pm <- Wednesday
+    4: ["7:00 PM"], // 7pm to 8pm <- Thursday
+    6: ["10:00 AM"], // 10am to 12pm <- Saturday
     // 0=Sunday, 5=Friday have no meetings
 };
+
+// parse 12-hour time string into 24-hour hour & minute
+function parseTimeString(timeStr) {
+    let [time, meridiem] = timeStr.split(" "); // ["7:00", "PM"]
+    let [hourStr, minStr] = time.split(":");
+    let hour = parseInt(hourStr);
+    const min = parseInt(minStr) || 0;
+
+    if (meridiem?.toUpperCase() === "PM" && hour !== 12) hour += 12;
+    if (meridiem?.toUpperCase() === "AM" && hour === 12) hour = 0;
+
+    return { hour, min };
+}
 
 // auto-check meeting time
 function getNextMeeting() {
@@ -23,13 +36,7 @@ function getNextMeeting() {
 
     const todayMeetings = schedule[day] || [];
     for (let start of todayMeetings) {
-        let [hourStr, minStr] = start.split(":");
-        let hour = parseInt(hourStr);
-        const min = parseInt(minStr) || 0;
-
-        // Convert PM times (e.g., 7:00 pm → 19:00)
-        if (hour === 7) hour = 19;
-
+        const {hour, min} = parseTimeString(start);
         if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
             return start; // next upcoming meeting
         }
