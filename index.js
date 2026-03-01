@@ -4,6 +4,39 @@ import 'dotenv/config';
 const USERNAME = process.env.MYCLASS_USER;
 const PASSWORD = process.env.MYCLASS_PASS;
 
+// Step 0: Define schedule
+const schedule = {
+    1: ["7:00"], // 7pm to 8pm <- Monday
+    2: ["7:00"], // 7pm to 8pm <- Tuesday
+    3: ["7:00"], // 7pm to 8pm <- Wednesday
+    4: ["7:00"], // 7pm to 8pm <- Thursday
+    6: ["10:00"], // 10am to 12pm <- Saturday
+    // 0=Sunday, 5=Friday have no meetings
+};
+
+// auto-check meeting time
+function getNextMeeting() {
+    const now = new Date();
+    const day = now.getDay();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    const todayMeetings = schedule[day] || [];
+    for (let start of todayMeetings) {
+        let [hourStr, minStr] = start.split(":");
+        let hour = parseInt(hourStr);
+        const min = parseInt(minStr) || 0;
+
+        // Convert PM times (e.g., 7:00 pm → 19:00)
+        if (hour === 7) hour = 19;
+
+        if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
+            return start; // next upcoming meeting
+        }
+    }
+    return null; // no upcoming meetings
+}
+
 // helper: wait for X ms
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -95,21 +128,27 @@ async function pollForMeetingStart(page, intervalMs = 4000) {
     }
 }
 
-async function main(startTime) {
+async function main() {
+    const startTime = getNextMeeting();
+    if (!startTime) {
+        console.log("📅 No upcoming meetings today.");
+        return;
+    }
+    console.log(`🎯 Next meeting is at ${startTime}`);
+
     const { browser, page } = await launchBrowser();
     try {
         await loginToMyClass(page);
         await navigateToMeetings(page);
         await selectMeeting(page, startTime);
 
-        await pollForMeetingStart(page); // poll until meeting starts
+        await pollForMeetingStart(page); // poll until join button appears
 
         const frame = await joinMeetingFrame(page);
-        // await connectAudio(frame);
-        await pollForAudio(frame);
+        await pollForAudio(frame); // keep trying until "Listen only" button appears
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
-        await stayInMeeting(130); // 2h10m
+        await stayInMeeting(130); // stay 2h10m
 
     } catch (err) {
         console.error("❌ Error:", err.message);
@@ -118,4 +157,4 @@ async function main(startTime) {
     }
 }
 
-main("7:00"); // arg = desired meeting time
+main(); // automatically join meeting
