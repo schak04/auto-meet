@@ -4,6 +4,7 @@ import 'dotenv/config';
 const USERNAME = process.env.MYCLASS_USER;
 const PASSWORD = process.env.MYCLASS_PASS;
 
+// helper: wait for X ms
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -15,7 +16,7 @@ async function launchBrowser() {
         args: ["--start-maximized"]
     });
     const page = await browser.newPage();
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(30000); // default timeout for waits
     return { browser, page };
 }
 
@@ -27,6 +28,7 @@ async function loginToMyClass(page) {
         page.waitForNavigation({ waitUntil: "networkidle2" }),
         page.click("button.ghost-round.full-width")
     ]);
+    console.log("✅ Logged in");
 }
 
 async function navigateToMeetings(page) {
@@ -41,10 +43,7 @@ async function selectMeeting(page, startTime) {
 }
 
 async function joinMeetingFrame(page) {
-    await page.waitForSelector("a.joinBtn", { visible: true });
-    await page.click("a.joinBtn");
-
-    await page.waitForSelector("iframe");
+    await page.waitForSelector("iframe", { visible: true });
     const iframeElement = await page.$("iframe");
     const frame = await iframeElement.contentFrame();
     return frame;
@@ -53,6 +52,7 @@ async function joinMeetingFrame(page) {
 async function connectAudio(frame) {
     await frame.waitForSelector("button[aria-label='Listen only']", { visible: true });
     await frame.click("button[aria-label='Listen only']");
+    console.log("🎧 Connected in Listen only mode");
 }
 
 async function stayInMeeting(durationMinutes) {
@@ -60,16 +60,17 @@ async function stayInMeeting(durationMinutes) {
     await sleep(durationMinutes * 60 * 1000);
 }
 
-async function pollForMeetingStart(page, intervalMs = 3000) {
+async function pollForMeetingStart(page, intervalMs = 4000) {
+    console.log("⏳ Waiting for the meeting to start...");
     let joined = false;
     while (!joined) {
         const btn = await page.$("a.joinBtn"); // check if the button is there
         if (btn) {
             await btn.click(); // click to join the meeting
             joined = true;
-            console.log("🔗 Joined meeting!");
+            console.log("🔗 Join button detected! Joining now...");
         } else {
-            console.log("Waiting for the meeting to start...");
+            console.log(`⏱ Meeting not ready yet, reloading in ${intervalMs/1000} seconds...`);
             await sleep(intervalMs);
             await page.reload({ waitUntil: "networkidle2" });
         }
@@ -98,4 +99,4 @@ async function main(startTime) {
     }
 }
 
-main("7:00");
+main("7:00"); // arg = desired meeting time
