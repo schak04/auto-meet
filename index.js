@@ -76,8 +76,12 @@ async function navigateToMeetings(page) {
     await page.click("a[aria-label='View Classes and Meetings']");
 }
 
+function formatForDataStart(timeStr) {
+    return timeStr.split(" ")[0]; // "7:00 PM" → "7:00"
+}
 async function selectMeeting(page, startTime) {
-    const meetingSelector = `div.fc-time[data-start='${startTime}']`;
+    const dataStart = formatForDataStart(startTime);
+    const meetingSelector = `div.fc-time[data-start='${dataStart}']`;
     await page.waitForSelector(meetingSelector, { visible: true });
     await page.click(meetingSelector);
 }
@@ -96,8 +100,9 @@ async function pollForAudio(frame, intervalMs = 2000) {
         if (btn) {
             await btn.click();
             connected = true;
-            console.log("🎧 Connected in Listen only mode");
+            console.log("🎧 Connected to audio in Listen-only mode");
         } else {
+            console.log("Couldn't connect to audio. Retrying...");
             await sleep(intervalMs);
         }
     }
