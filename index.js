@@ -98,7 +98,9 @@ async function selectMeeting(page, startTime) {
 async function joinMeetingFrame(page) {
     await page.waitForSelector("iframe", { visible: true });
     const iframeElement = await page.$("iframe");
+    if (!iframeElement) throw new Error("Iframe not found");
     const frame = await iframeElement.contentFrame();
+    if (!frame) throw new Error("Failed to get frame content");
     return frame;
 }
 
@@ -134,9 +136,12 @@ async function pollForMeetingStart(page, intervalMs = 4000) {
     while (!joined) {
         const btn = await page.$("a.joinBtn"); // check if the button is there
         if (btn) {
-            await btn.click(); // click to join the meeting
-            joined = true;
             console.log("🔗 Join button detected! Joining now...");
+            await Promise.all([
+                page.waitForNavigation({ waitUntil: "networkidle2" }),
+                btn.click() // click to join the meeting
+            ]);
+            joined = true;
         } else {
             console.log(`⏱ Meeting not ready yet, reloading in ${intervalMs/1000} seconds...`);
             await sleep(intervalMs);
