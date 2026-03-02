@@ -104,16 +104,23 @@ async function joinMeetingFrame(page) {
     return frame;
 }
 
-async function pollForAudio(frame, intervalMs = 2000) {
+async function pollForAudio(page, intervalMs = 2000) {
     let connected = false;
     while (!connected) {
-        const btn = await frame.$("button[aria-label='Listen only']");
-        if (btn) {
-            await btn.click();
-            connected = true;
-            console.log("🎧 Connected to audio in Listen-only mode");
-        } else {
-            console.log("Couldn't connect to audio. Retrying...");
+        try {
+            const frame = await joinMeetingFrame(page);
+            const btn = await frame.$("button[aria-label='Listen only']");
+            if (btn) {
+                await btn.click();
+                console.log("🎧 Connected to audio in Listen-only mode");
+                connected = true;
+            } else {
+                console.log("Couldn't connect to audio. Retrying...");
+                await sleep(intervalMs);
+            }
+        }
+        catch (e) {
+            console.log("⚠️ Frame not ready, retrying...");
             await sleep(intervalMs);
         }
     }
@@ -180,8 +187,7 @@ async function main() {
         await selectMeeting(page, startTime);
 
         await pollForMeetingStart(page); // poll until join button appears
-        const frame = await joinMeetingFrame(page);
-        await pollForAudio(frame); // keep trying until "Listen only" button appears
+        await pollForAudio(page); // keep trying until "Listen only" button appears
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
         await stayInMeeting(duration); // stay as long as the meeting goes on
