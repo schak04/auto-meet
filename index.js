@@ -44,6 +44,15 @@ function getNextMeeting() {
     return null; // no upcoming meetings
 }
 
+// check if the meeting time is close or not -> to avoid unnecessary reloads if not close
+function getDelayUntilMeeting(timeStr) {
+    const now = new Date();
+    const { hour, min } = parseTimeString(timeStr);
+    const meetingTime = new Date(now);
+    meetingTime.setHours(hour, min, 0, 0);
+    return meetingTime - now; // milliseconds
+}
+
 // helper: wait for X ms
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -149,7 +158,17 @@ async function main() {
     const { time: startTime, duration } = nextMeeting;
     console.log(`🎯 Next meeting at: ${startTime}, Duration: ${duration} minutes`);
 
+    // check delay until meeting to avoid unnecessary reloads
+    const delay = getDelayUntilMeeting(startTime);
+    if (delay > 2 * 60 * 1000) { // more than 2 minutes away
+        const waitTime = delay - (2 * 60 * 1000);
+        console.log(`⏳ Sleeping for ${(waitTime / 60000).toFixed(1)} minutes until near meeting time...`);
+        await sleep(waitTime);
+    }
+
+    // browser launches ONLY near meeting time
     const { browser, page } = await launchBrowser();
+
     try {
         await loginToMyClass(page);
         await navigateToMeetings(page);
