@@ -172,8 +172,8 @@ async function main() {
 
     // check delay until meeting to avoid unnecessary reloads
     const delay = getDelayUntilMeeting(startTime);
-    if (delay > 2 * 60 * 1000) { // more than 2 minutes away
-        const waitTime = delay - (2 * 60 * 1000);
+    if (delay > 1 * 60 * 1000) { // more than 1 minute away
+        const waitTime = delay - (1 * 60 * 1000);
         console.log(`⏳ Sleeping for ${(waitTime / 60000).toFixed(1)} minutes until near meeting time...`);
         await sleep(waitTime);
     }
