@@ -44,7 +44,7 @@ function getNextMeeting() {
     return null; // no upcoming meetings
 }
 
-// check if the meeting time is close or not -> to avoid unnecessary reloads if not close
+// check if the meeting time is close or not -> to avoid unnecessary reloads if not near the meeting time
 function getDelayUntilMeeting(timeStr) {
     const now = new Date();
     const { hour, min } = parseTimeString(timeStr);
