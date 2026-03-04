@@ -4,6 +4,9 @@ import fs from 'fs';
 
 const USERNAME = process.env.MYCLASS_USER;
 const PASSWORD = process.env.MYCLASS_PASS;
+if (!USERNAME || !PASSWORD) {
+    throw new Error("Missing MYCLASS_USER or MYCLASS_PASS in .env");
+}
 
 /* step 0: define schedule in schedule.json
 Example:
