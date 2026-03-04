@@ -31,14 +31,21 @@ function parseTimeString(timeStr) {
 function getNextMeeting() {
     const now = new Date();
     const day = now.getDay();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
+    // const currentHour = now.getHours();
+    // const currentMinute = now.getMinutes();
+    
     const todayMeetings = schedule[day] || [];
     for (let { time, duration } of todayMeetings) {
         const { hour, min } = parseTimeString(time);
-        if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
-            return { time, duration }; // next upcoming meeting's start time and duration
+        // if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
+        //     return { time, duration }; // next upcoming meeting's start time and duration
+        // }
+        const start = new Date(now);
+        start.setHours(hour, min, 0, 0);
+        const end = new Date(start);
+        end.setMinutes(end.getMinutes() + duration);
+        if (now < end) {
+            return {time, duration};
         }
     }
     return null; // no upcoming meetings
