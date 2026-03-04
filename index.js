@@ -139,9 +139,17 @@ async function pollForAudio(page, intervalMs = 2000) {
 //     console.log("🎧 Connected in Listen only mode");
 // }
 
-async function stayInMeeting(durationMinutes) {
-    console.log(`⏳ Staying in meeting for ${durationMinutes} minutes...`);
-    await sleep(durationMinutes * 60 * 1000);
+// stay only as long as the meeting goes on
+async function stayInMeeting(startTime, duration) {
+    const now = new Date();
+    const {hour, min} = parseTimeString(startTime);
+    const start = new Date(now);
+    start.setHours(hour, min, 0, 0);
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + duration);
+    const remainingMs = Math.max(0, end - now);
+    console.log(`⏳ Staying until meeting ends (${(remainingMs / 60000).toFixed(1)} mins)...`);
+    await sleep(remainingMs);
 }
 
 async function pollForMeetingStart(page, intervalMs = 4000) {
@@ -198,17 +206,7 @@ async function main() {
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
 
-        // stay only as long as the meeting goes on
-        // if it starts late, then calculate the remaining time and then stay for that long
-        const now = new Date();
-        const { hour, min } = parseTimeString(startTime);
-        const start = new Date(now);
-        start.setHours(hour, min, 0, 0);
-        const end = new Date(start);
-        end.setMinutes(end.getMinutes() + duration);
-        const remainingMs = end - now;
-        const remainingMinutes = Math.max(0, remainingMs / 60000);
-        await stayInMeeting(remainingMinutes);
+        await stayInMeeting(startTime, duration);
     }
     catch (err) {
         console.error("❌ Error:", err.message);
