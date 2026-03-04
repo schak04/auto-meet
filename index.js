@@ -197,7 +197,18 @@ async function main() {
         await pollForAudio(page); // keep trying until "Listen only" button appears
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
-        await stayInMeeting(duration); // stay as long as the meeting goes on
+
+        // stay only as long as the meeting goes on
+        // if it starts late, then calculate the remaining time and then stay for that long
+        const now = new Date();
+        const { hour, min } = parseTimeString(startTime);
+        const start = new Date(now);
+        start.setHours(hour, min, 0, 0);
+        const end = new Date(start);
+        end.setMinutes(end.getMinutes() + duration);
+        const remainingMs = end - now;
+        const remainingMinutes = Math.max(0, remainingMs / 60000);
+        await stayInMeeting(remainingMinutes);
     }
     catch (err) {
         console.error("❌ Error:", err.message);
