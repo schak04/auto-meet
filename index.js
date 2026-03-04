@@ -1,18 +1,26 @@
 import puppeteer from "puppeteer";
 import 'dotenv/config';
+import fs from 'fs';
 
 const USERNAME = process.env.MYCLASS_USER;
 const PASSWORD = process.env.MYCLASS_PASS;
 
-// Step 0: Define schedule
-const schedule = {
-    1: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Monday
-    2: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Tuesday
-    3: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Wednesday
-    4: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Thursday
-    6: [{ time: "10:00 AM", duration: 120 }], // 10am to 12pm <- Saturday
-    // 0=Sunday, 5=Friday have no meetings
-};
+/* step 0: define schedule in schedule.json
+Example:
+{
+    "1": [{ "time": "8:30 PM", "duration": 60 }],
+    "2": [{ "time": "8:30 PM", "duration": 60 }],
+    "3": [{ "time": "8:30 PM", "duration": 60 }],
+    "4": [{ "time": "8:30 PM", "duration": 60 }],
+    "5": [{ "time": "8:30 PM", "duration": 60 }],
+    "6": [{ "time": "10:00 AM", "duration": 120 }]
+}
+> 'time' -> meeting start time
+> duration -> in minutes
+*/
+
+// parse schedule
+const schedule = JSON.parse(fs.readFileSync('./schedule.json', 'utf8'));
 
 // parse 12-hour time string into 24-hour hour & minute
 function parseTimeString(timeStr) {
