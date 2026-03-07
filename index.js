@@ -154,13 +154,35 @@ async function pollForAudio(page, intervalMs = 2000) {
 async function stayInMeeting(startTime, duration) {
     const now = new Date();
     const {hour, min} = parseTimeString(startTime);
+
     const start = new Date(now);
     start.setHours(hour, min, 0, 0);
     const end = new Date(start);
     end.setMinutes(end.getMinutes() + duration);
-    const remainingMs = Math.max(0, end - now);
-    console.log(`⏳ Staying until meeting ends (${(remainingMs / 60000).toFixed(1)} mins)...`);
-    await sleep(remainingMs);
+    
+    const totalMs = end - start;
+    // const remainingMs = Math.max(0, end - now);
+    
+    console.log(`⏳ Staying until meeting ends...`);
+    
+    const interval = 5000; // update progress bar every 5s
+
+    while (true) {
+        const now = Date.now();
+        if (now>=end) break;
+        const elapsed = now - start;
+        const progress = Math.min(elapsed/totalMs, 1);
+        const barLength = 20;
+        const filled = Math.round(progress*barLength);
+        const bar = "🟢".repeat(filled) + "-".repeat(barLength-filled);
+        const percent = (progress*100).toFixed(2);
+
+        process.stdout.write(`\r[${bar}] ${percent}%`);
+
+        await sleep(interval);
+    }
+    process.stdout.write(`\r[${"🟢".repeat(20)}] 100%\n`);
+    console.log("\n✅ Meeting finished");
 }
 
 async function pollForMeetingStart(page, intervalMs = 4000) {
