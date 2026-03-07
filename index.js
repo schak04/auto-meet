@@ -80,7 +80,10 @@ async function launchBrowser() {
     const browser = await puppeteer.launch({
         headless: false,
         defaultViewport: null,
-        args: ["--start-maximized"]
+        args: [
+            "--start-maximized",
+            "--use-fake-ui-for-media-stream" // to auto-accept mic permissions
+        ]
     });
     const page = await browser.newPage();
     page.setDefaultTimeout(30000); // default timeout for waits
@@ -127,13 +130,33 @@ async function pollForAudio(page, intervalMs = 2000) {
     while (!connected) {
         try {
             const frame = await joinMeetingFrame(page);
-            const btn = await frame.$("button[aria-label='Listen only']");
-            if (btn) {
-                await btn.click();
+            /* Microphone Mode */
+            const micBtn = await frame.$("button[aria-label='Microphone']");
+            if (micBtn) {
+                await micBtn.click();
+                console.log("🎤 Selected audio in Microphone mode. Waiting for echo test...");
+
+                await frame.waitForSelector("button[aria-label='Echo is audible']", {visible: true}); // wait for echo test
+
+                const yesBtn = await frame.$("button[aria-label='Echo is audible']");
+                if (yesBtn) {
+                    await yesBtn.click();
+                    console.log("🗣️ Echo test CONFIRMED!! AAAAAND...");
+                    console.log("🎧🎤 Connected to audio in Microphone mode");
+                    connected = true;
+                }
+            }
+            /* Listen-only Mode */
+            /*
+            const listenOnlyBtn = await frame.$("button[aria-label='Listen only']");
+            if (listenOnlyBtn) {
+                await listenOnlyBtn.click();
                 console.log("🎧 Connected to audio in Listen-only mode");
                 connected = true;
-            } else {
-                console.log("Couldn't connect to audio. Retrying...");
+            }
+            */
+            if (!connected) {
+                console.log("⚠️ Couldn't connect to audio. Retrying...");
                 await sleep(intervalMs);
             }
         }
