@@ -176,12 +176,12 @@ async function stayInMeeting(startTime, duration) {
         const filled = Math.round(progress*barLength);
         const bar = "🟢".repeat(filled) + "-".repeat(barLength-filled);
         const percent = (progress*100).toFixed(2);
-
-        process.stdout.write(`\r[${bar}] ${percent}%`);
-
+        // \r -> carriage return character -> moves the cursor back to the beginning of the current line
+        // \x1b[K -> clears everything to the right of the cursor -> this is to avoid "100%00%" instead of "100%" on meeting completion
+        process.stdout.write(`\r\x1b[K[${bar}] ${percent}%`);
         await sleep(interval);
     }
-    process.stdout.write(`\r[${"🟢".repeat(20)}] 100%\n`);
+    process.stdout.write(`\r\x1b[K[${"🟢".repeat(20)}] 100%\n`);
     console.log("\n✅ Meeting finished");
 }
 
