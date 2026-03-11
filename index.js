@@ -196,8 +196,6 @@ async function stayInMeeting(page, startTime, duration) {
     
     const interval = 5000; // update progress bar every 5s
 
-    let failCount = 0;
-    const maxFails = 3;
     while (true) {
         const nowTime = Date.now();
         if (nowTime>=end) break;
@@ -206,26 +204,20 @@ async function stayInMeeting(page, startTime, duration) {
 
         try {
             const frame = await joinMeetingFrame(page);
-            const audioIndicator = await frame.$("button[aria-label*='Mute'], button[aria-label*='Unmute']"); // check if audio UI still exists
+            const audioIndicator = await frame.$("button[aria-label='Mute'], button[aria-label='Unmute']"); // check if audio UI still exists
             if (audioIndicator) stillInMeeting = true;
         } catch {
             stillInMeeting = false;
         }
 
-        if (stillInMeeting) {
-            failCount = 0;
-        } else {
-            failCount++;
-            if (failCount >= maxFails) {
-                console.log("⚠️ Disconnected from meeting! Attempting to rejoin...");
-                try {
-                    await pollForMeetingStart(page);
-                    await pollForAudio(page);
-                    console.log("✅ Successfully rejoined meeting!");
-                    failCount = 0;
-                } catch (e) {
-                    console.log("⚠️ Rejoin attempt failed, retrying...");
-                }
+        if (!stillInMeeting) {
+            console.log("⚠️ Disconnected from meeting! Attempting to rejoin...");
+            try {
+                await pollForMeetingStart(page);
+                await pollForAudio(page);
+                console.log("✅ Successfully rejoined meeting!");
+            } catch (e) {
+                console.log("⚠️ Rejoin attempt failed, retrying...");
             }
         }
 
