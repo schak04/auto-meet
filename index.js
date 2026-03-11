@@ -196,8 +196,8 @@ async function stayInMeeting(startTime, duration) {
     
     console.log(`⏳ Staying until meeting ends...`);
 
-    // TODO: change progress bar style to a command-line tool sorta aesthetic -> Done
-    // Found a style: █████▒▒▒▒▒ --- Source: https://www.naut.ca/blog/2024/12/26/making-a-unicode-progress-bar/
+    // Done: change progress bar style to a command-line tool sorta aesthetic
+    // Progress bar style: █████▒▒▒▒▒ --- Source: https://www.naut.ca/blog/2024/12/26/making-a-unicode-progress-bar/
 
     const interval = 5000; // update progress bar every 5s
 
