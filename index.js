@@ -195,7 +195,9 @@ async function stayInMeeting(startTime, duration) {
     // const remainingMs = Math.max(0, end - now);
     
     console.log(`⏳ Staying until meeting ends...`);
-    
+
+    // TODO: change progress bar style to a command-line tool sorta aesthetic
+
     const interval = 5000; // update progress bar every 5s
 
     while (true) {
