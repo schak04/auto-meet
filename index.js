@@ -196,7 +196,8 @@ async function stayInMeeting(startTime, duration) {
     
     console.log(`⏳ Staying until meeting ends...`);
 
-    // TODO: change progress bar style to a command-line tool sorta aesthetic
+    // TODO: change progress bar style to a command-line tool sorta aesthetic -> Done
+    // Found a style: █████▒▒▒▒▒ --- Source: https://www.naut.ca/blog/2024/12/26/making-a-unicode-progress-bar/
 
     const interval = 5000; // update progress bar every 5s
 
@@ -207,14 +208,14 @@ async function stayInMeeting(startTime, duration) {
         const progress = Math.min(elapsed/totalMs, 1);
         const barLength = 20;
         const filled = Math.round(progress*barLength);
-        const bar = "🟢".repeat(filled) + "-".repeat(barLength-filled);
+        const bar = "█".repeat(filled) + "▒".repeat(barLength-filled);
         const percent = (progress*100).toFixed(2);
         // \r -> carriage return character -> moves the cursor back to the beginning of the current line
         // \x1b[K -> clears everything to the right of the cursor -> this is to avoid "100%00%" instead of "100%" on meeting completion
         process.stdout.write(`\r\x1b[K[${bar}] ${percent}%`);
         await sleep(interval);
     }
-    process.stdout.write(`\r\x1b[K[${"🟢".repeat(20)}] 100%\n`);
+    process.stdout.write(`\r\x1b[K[${"█".repeat(20)}] 100%\n`);
     console.log("\n✅ Meeting finished");
 }
 
