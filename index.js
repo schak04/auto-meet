@@ -77,8 +77,16 @@ function sleep(ms) {
 }
 
 async function launchBrowser() {
+    let executablePath;
+    if (process.platform === "linux") { // cuz I use Arch btw (I...couldn't help writing this comment. I hope my future-self isn't cringing at me...and is instead...proud of me)
+        executablePath = "/usr/bin/chromium";
+    }
+    else {
+        executablePath = undefined; // let puppeteer use its bundled Chromium 
+    }
     const browser = await puppeteer.launch({
         headless: false,
+        executablePath,
         defaultViewport: null,
         args: [
             "--start-maximized",
