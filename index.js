@@ -80,7 +80,7 @@ async function launchBrowser() {
     let executablePath;
     if (process.platform === "linux") { // Arch BTW
         executablePath = "/usr/bin/chromium";
-    } else { // for mac and windows
+    } else if (process.platform === "win32") {
         executablePath = undefined; // let puppeteer use its bundled Chromium 
     }
     const browser = await puppeteer.launch({
