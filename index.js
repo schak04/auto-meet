@@ -1,18 +1,29 @@
 import puppeteer from "puppeteer";
 import 'dotenv/config';
+import fs from 'fs';
 
 const USERNAME = process.env.MYCLASS_USER;
 const PASSWORD = process.env.MYCLASS_PASS;
+if (!USERNAME || !PASSWORD) {
+    throw new Error("Missing MYCLASS_USER or MYCLASS_PASS in .env");
+}
 
-// Step 0: Define schedule
-const schedule = {
-    1: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Monday
-    2: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Tuesday
-    3: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Wednesday
-    4: [{ time: "7:00 PM", duration: 60 }], // 7pm to 8pm <- Thursday
-    6: [{ time: "10:00 AM", duration: 120 }], // 10am to 12pm <- Saturday
-    // 0=Sunday, 5=Friday have no meetings
-};
+/* step 0: define schedule in schedule.json
+Example:
+{
+    "1": [{ "time": "8:30 PM", "duration": 60 }],
+    "2": [{ "time": "8:30 PM", "duration": 60 }],
+    "3": [{ "time": "8:30 PM", "duration": 60 }],
+    "4": [{ "time": "8:30 PM", "duration": 60 }],
+    "5": [{ "time": "8:30 PM", "duration": 60 }],
+    "6": [{ "time": "10:00 AM", "duration": 120 }]
+}
+> 'time' -> meeting start time
+> duration -> in minutes
+*/
+
+// parse schedule
+const schedule = JSON.parse(fs.readFileSync('./schedule.json', 'utf8'));
 
 // parse 12-hour time string into 24-hour hour & minute
 function parseTimeString(timeStr) {
@@ -31,14 +42,21 @@ function parseTimeString(timeStr) {
 function getNextMeeting() {
     const now = new Date();
     const day = now.getDay();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
+    // const currentHour = now.getHours();
+    // const currentMinute = now.getMinutes();
+    
     const todayMeetings = schedule[day] || [];
     for (let { time, duration } of todayMeetings) {
         const { hour, min } = parseTimeString(time);
-        if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
-            return { time, duration }; // next upcoming meeting's start time and duration
+        // if (currentHour < hour || (currentHour === hour && currentMinute <= min)) {
+        //     return { time, duration }; // next upcoming meeting's start time and duration
+        // }
+        const start = new Date(now);
+        start.setHours(hour, min, 0, 0);
+        const end = new Date(start);
+        end.setMinutes(end.getMinutes() + duration);
+        if (now < end) {
+            return {time, duration};
         }
     }
     return null; // no upcoming meetings
@@ -59,10 +77,21 @@ function sleep(ms) {
 }
 
 async function launchBrowser() {
+    let executablePath;
+    if (process.platform === "linux") { // cuz I use Arch btw (I...couldn't help writing this comment. I hope my future-self isn't cringing at me...and is instead...proud of me)
+        executablePath = "/usr/bin/chromium";
+    }
+    else {
+        executablePath = undefined; // let puppeteer use its bundled Chromium 
+    }
     const browser = await puppeteer.launch({
         headless: false,
+        executablePath,
         defaultViewport: null,
-        args: ["--start-maximized"]
+        args: [
+            "--start-maximized",
+            "--use-fake-ui-for-media-stream" // to auto-accept mic permissions
+        ]
     });
     const page = await browser.newPage();
     page.setDefaultTimeout(30000); // default timeout for waits
@@ -109,13 +138,33 @@ async function pollForAudio(page, intervalMs = 2000) {
     while (!connected) {
         try {
             const frame = await joinMeetingFrame(page);
-            const btn = await frame.$("button[aria-label='Listen only']");
-            if (btn) {
-                await btn.click();
+            /* Microphone Mode */
+            const micBtn = await frame.$("button[aria-label='Microphone']");
+            if (micBtn) {
+                await micBtn.click();
+                console.log("🎤 Selected audio in Microphone mode. Waiting for echo test...");
+
+                await frame.waitForSelector("button[aria-label='Echo is audible']", {visible: true}); // wait for echo test
+
+                const yesBtn = await frame.$("button[aria-label='Echo is audible']");
+                if (yesBtn) {
+                    await yesBtn.click();
+                    console.log("🗣️ Echo test CONFIRMED!! AAAAAND...");
+                    console.log("🎧🎤 Connected to audio in Microphone mode");
+                    connected = true;
+                }
+            }
+            /* Listen-only Mode */
+            /*
+            const listenOnlyBtn = await frame.$("button[aria-label='Listen only']");
+            if (listenOnlyBtn) {
+                await listenOnlyBtn.click();
                 console.log("🎧 Connected to audio in Listen-only mode");
                 connected = true;
-            } else {
-                console.log("Couldn't connect to audio. Retrying...");
+            }
+            */
+            if (!connected) {
+                console.log("⚠️ Couldn't connect to audio. Retrying...");
                 await sleep(intervalMs);
             }
         }
@@ -132,9 +181,42 @@ async function pollForAudio(page, intervalMs = 2000) {
 //     console.log("🎧 Connected in Listen only mode");
 // }
 
-async function stayInMeeting(durationMinutes) {
-    console.log(`⏳ Staying in meeting for ${durationMinutes} minutes...`);
-    await sleep(durationMinutes * 60 * 1000);
+// stay only as long as the meeting goes on
+async function stayInMeeting(startTime, duration) {
+    const now = new Date();
+    const {hour, min} = parseTimeString(startTime);
+
+    const start = new Date(now);
+    start.setHours(hour, min, 0, 0);
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + duration);
+    
+    const totalMs = end - start;
+    // const remainingMs = Math.max(0, end - now);
+    
+    console.log(`⏳ Staying until meeting ends...`);
+
+    // Done: change progress bar style to a command-line tool sorta aesthetic
+    // Progress bar style: █████▒▒▒▒▒ --- Source: https://www.naut.ca/blog/2024/12/26/making-a-unicode-progress-bar/
+
+    const interval = 5000; // update progress bar every 5s
+
+    while (true) {
+        const now = Date.now();
+        if (now>=end) break;
+        const elapsed = now - start;
+        const progress = Math.min(elapsed/totalMs, 1);
+        const barLength = 20;
+        const filled = Math.round(progress*barLength);
+        const bar = "█".repeat(filled) + "▒".repeat(barLength-filled);
+        const percent = (progress*100).toFixed(2);
+        // \r -> carriage return character -> moves the cursor back to the beginning of the current line
+        // \x1b[K -> clears everything to the right of the cursor -> this is to avoid "100%00%" instead of "100%" on meeting completion
+        process.stdout.write(`\r\x1b[K[${bar}] ${percent}%`);
+        await sleep(interval);
+    }
+    process.stdout.write(`\r\x1b[K[${"█".repeat(20)}] 100%\n`);
+    console.log("\n✅ Meeting finished");
 }
 
 async function pollForMeetingStart(page, intervalMs = 4000) {
@@ -150,7 +232,7 @@ async function pollForMeetingStart(page, intervalMs = 4000) {
             ]);
             joined = true;
         } else {
-            console.log(`⏱ Meeting not ready yet, reloading in ${intervalMs/1000} seconds...`);
+            console.log(`⏱️ Meeting not ready yet, reloading in ${intervalMs/1000} seconds...`);
             await sleep(intervalMs);
             try {
                 await page.reload({ waitUntil: "networkidle2" });
@@ -190,7 +272,8 @@ async function main() {
         await pollForAudio(page); // keep trying until "Listen only" button appears
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
-        await stayInMeeting(duration); // stay as long as the meeting goes on
+
+        await stayInMeeting(startTime, duration);
     }
     catch (err) {
         console.error("❌ Error:", err.message);
