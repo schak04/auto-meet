@@ -78,7 +78,7 @@ function sleep(ms) {
 
 async function launchBrowser() {
     let executablePath;
-    if (process.platform === "linux") { // cuz I use Arch btw (I...couldn't help writing this comment. I hope my future-self isn't cringing at me...and is instead...proud of me)
+    if (process.platform === "linux") {
         executablePath = "/usr/bin/chromium";
     }
     else {
@@ -269,7 +269,7 @@ async function main() {
         await selectMeeting(page, startTime);
 
         await pollForMeetingStart(page); // poll until join button appears
-        await pollForAudio(page); // keep trying until "Listen only" button appears
+        await pollForAudio(page); // keep trying until "Mic/Listen-only" button appears
 
         console.log(`✅ Successfully joined meeting at ${startTime}`);
 
