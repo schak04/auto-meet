@@ -316,35 +316,34 @@ async function pollForAudio(page, intervalMs = 2500, maxMinutes = 10) {
   while (!connected && attempts < maxAttempts) {
     try {
       const frame = await joinMeetingFrame(page);
-      const micBtn = await frame.$("button[aria-label='Microphone']");
-      if (micBtn) {
-        await micBtn.click().catch(() => {});
-        console.log(
-          "🎤 Selected audio in Microphone mode. Waiting for echo test...",
-        );
-        try {
-          await frame.waitForSelector("button[aria-label='Echo is audible']", {
-            visible: true,
-            timeout: 15000,
-          });
-          const yesBtn = await frame.$("button[aria-label='Echo is audible']");
-          if (yesBtn) {
-            await yesBtn.click().catch(() => {});
-            console.log("🗣️ Echo test confirmed");
-            console.log("🎧🎤 Connected to audio in Microphone mode");
-            connected = true;
-            break;
-          }
-        } catch (e) {
-          console.log("⚠️ Echo test not available yet");
-        }
-      }
       const listenOnlyBtn = await frame.$("button[aria-label='Listen only']");
-      if (listenOnlyBtn && !connected) {
+      if (listenOnlyBtn) {
         await listenOnlyBtn.click().catch(() => {});
         console.log("🎧 Connected to audio in Listen-only mode");
         connected = true;
         break;
+      }
+      const micBtn = await frame.$("button[aria-label='Microphone']");
+      if (micBtn && !connected) {
+        try {
+          await micBtn.click().catch(() => {});
+          console.log("⚠️ Listen only not found, attempting Microphone mode");
+          await frame
+            .waitForSelector("button[aria-label='Echo is audible']", {
+              visible: true,
+              timeout: 10000,
+            })
+            .catch(() => {});
+          const yesBtn = await frame.$("button[aria-label='Echo is audible']");
+          if (yesBtn) {
+            await yesBtn.click().catch(() => {});
+          }
+          console.log("🎤 Connected to audio in Microphone mode");
+          connected = true;
+          break;
+        } catch (e) {
+          console.log("⚠️ Microphone mode fallback failed");
+        }
       }
     } catch (e) {
       console.log(`⚠️ Frame not ready: ${e.message}`);
