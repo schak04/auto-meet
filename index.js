@@ -263,100 +263,89 @@ async function selectMeeting(page, startTime) {
   await sleep(2000);
 }
 
-async function joinMeetingFrame(page) {
-  await page.waitForSelector("iframe", { visible: true, timeout: 60000 });
-  const iframeElement = await page.$("iframe");
-  if (!iframeElement) throw new Error("Iframe not found");
-  const frame = await iframeElement.contentFrame();
-  if (!frame) throw new Error("Failed to get frame content");
-  return frame;
-}
+async function pollForMeetingStart(
+  page,
+  startTime,
+  duration,
+  maxAttempts = 30,
+  intervalMs = 4000,
+) {
+  const { hour, min } = parseTimeString(startTime);
 
-async function pollForMeetingStart(page, maxAttempts = 30, intervalMs = 4000) {
-  console.log("⏳ Waiting for the meeting to start...");
+  const meetingStart = new Date();
+  meetingStart.setHours(hour, min, 0, 0);
+
+  const meetingEnd = new Date(meetingStart);
+  meetingEnd.setMinutes(meetingEnd.getMinutes() + duration);
+
+  console.log("⏳ Waiting for the meeting to start or become joinable...");
+
   let attempts = 0;
+
   while (attempts < maxAttempts) {
+    const now = new Date();
+
+    // Don't attempt to join an already-ended meeting.
+    if (now >= meetingEnd) {
+      throw new Error("Meeting has already ended");
+    }
+
+    const meetingStarted = now >= meetingStart;
+
     try {
       const btn = await page.$("a.joinBtn");
+
       if (btn) {
         const isVisible = await btn.isIntersectingViewport().catch(() => true);
+
         if (isVisible) {
-          console.log("🔗 Join button detected! Joining now...");
+          console.log(
+            meetingStarted
+              ? "🔗 Meeting already started. Rejoining now..."
+              : "🔗 Join button detected! Joining now...",
+          );
+
           await Promise.all([
             page
-              .waitForNavigation({ waitUntil: "networkidle2", timeout: 90000 })
+              .waitForNavigation({
+                waitUntil: "networkidle2",
+                timeout: 90000,
+              })
               .catch(() => {}),
             btn.click(),
           ]);
+
           return true;
         }
       }
     } catch (e) {
       console.log(`⚠️ Check failed: ${e.message}`);
     }
+
     attempts++;
+
     console.log(
-      `⏱️ Meeting not ready yet, reloading in ${intervalMs / 1000}s... (attempt ${attempts}/${maxAttempts})`,
+      meetingStarted
+        ? `🔄 Meeting is active, looking for Join button... (${attempts}/${maxAttempts})`
+        : `⏱️ Meeting not ready yet, reloading in ${
+            intervalMs / 1000
+          }s... (${attempts}/${maxAttempts})`,
     );
+
     await sleep(intervalMs);
+
     try {
-      await page.reload({ waitUntil: "networkidle2", timeout: 90000 });
+      await page.reload({
+        waitUntil: "networkidle2",
+        timeout: 90000,
+      });
       await sleep(3000);
     } catch (e) {
       console.log(`⚠️ Reload failed: ${e.message}`);
     }
   }
-  throw new Error("Join button did not appear within timeout");
-}
 
-async function pollForAudio(page, intervalMs = 2500, maxMinutes = 10) {
-  let connected = false;
-  const maxAttempts = Math.floor((maxMinutes * 60 * 1000) / intervalMs);
-  let attempts = 0;
-  while (!connected && attempts < maxAttempts) {
-    try {
-      const frame = await joinMeetingFrame(page);
-      const listenOnlyBtn = await frame.$("button[aria-label='Listen only']");
-      if (listenOnlyBtn) {
-        await listenOnlyBtn.click().catch(() => {});
-        console.log("🎧 Connected to audio in Listen-only mode");
-        connected = true;
-        break;
-      }
-      const micBtn = await frame.$("button[aria-label='Microphone']");
-      if (micBtn && !connected) {
-        try {
-          await micBtn.click().catch(() => {});
-          console.log("⚠️ Listen only not found, attempting Microphone mode");
-          await frame
-            .waitForSelector("button[aria-label='Echo is audible']", {
-              visible: true,
-              timeout: 10000,
-            })
-            .catch(() => {});
-          const yesBtn = await frame.$("button[aria-label='Echo is audible']");
-          if (yesBtn) {
-            await yesBtn.click().catch(() => {});
-          }
-          console.log("🎤 Connected to audio in Microphone mode");
-          connected = true;
-          break;
-        } catch (e) {
-          console.log("⚠️ Microphone mode fallback failed");
-        }
-      }
-    } catch (e) {
-      console.log(`⚠️ Frame not ready: ${e.message}`);
-    }
-    if (!connected) {
-      console.log("⚠️ Couldn't connect to audio. Retrying...");
-      await sleep(intervalMs);
-      attempts++;
-    }
-  }
-  if (!connected) {
-    throw new Error("Failed to connect audio within timeout");
-  }
+  throw new Error("Join button did not appear within timeout");
 }
 
 async function stayInMeeting(startTime, duration) {
@@ -431,16 +420,14 @@ async function attendSingleMeeting(
       } catch (e) {}
     }
 
-    await withRetry(() => pollForMeetingStart(currentPage), {
-      name: "pollStart",
-      retries: 2,
-      retryDelay: 5000,
-    });
-    await withRetry(() => pollForAudio(currentPage), {
-      name: "pollAudio",
-      retries: 2,
-      retryDelay: 5000,
-    });
+    await withRetry(
+      () => pollForMeetingStart(currentPage, startTime, duration),
+      {
+        name: "pollStart",
+        retries: 2,
+        retryDelay: 5000,
+      },
+    );
 
     console.log(`✅ Successfully joined meeting at ${startTime}`);
     await stayInMeeting(startTime, duration);
